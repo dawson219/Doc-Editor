@@ -13,12 +13,11 @@ public class CorsConfig {
 		return new WebMvcConfigurer() {
 			@Override
 			public void addCorsMappings(CorsRegistry registry) {
-				registry.addMapping("/**") // Allow all endpoints to be accessed
-						.allowedOrigins("http://localhost:3000", "http://localhost:3000/") // Add your allowed origins here
-						.allowedMethods("GET", "POST", "PUT", "DELETE") // Add your allowed methods here
-						.allowedHeaders("*") // Allow all headers
-						.allowCredentials(true) // Allow credentials (cookies, authorization headers, etc.)
-						.maxAge(3600); // Cache the preflight response for 3600 seconds
+				registry.addMapping("/**")
+						.allowedOrigins("http://localhost:3000", "http://localhost:3000/",
+								"https://dr-doc-daws.netlify.app/", "https://dr-doc-daws.netlify.app")
+						.allowedMethods("GET", "POST", "PUT", "DELETE").allowedHeaders("*").allowCredentials(true)
+						.maxAge(3600);
 			}
 		};
 	}
