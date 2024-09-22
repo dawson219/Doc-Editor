@@ -8,6 +8,7 @@ public class DocumentEditorApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(DocumentEditorApplication.class, args);
+		System.out.println("Document Application Started ........");
 	}
 
 }
