@@ -7,6 +7,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.dawson.document.models.CollaborateDocumentRequest;
+import com.dawson.document.models.CollaborateDocumentResponse;
 import com.dawson.document.models.CreateDocumentRequest;
 import com.dawson.document.models.CreateDocumentResponse;
 import com.dawson.document.models.DeleteDocumentRequest;
@@ -58,7 +60,7 @@ public class DocumentController {
 
 	@PostMapping("/fetch-by-user")
 	public ResponseEntity<FetchDocumentResponse> fetchDocuments(@RequestBody FetchDocumentsRequest request) {
-		log.info("Get document request received : {}", request);
+		log.info("Get documents request received : {}", request);
 		return ResponseEntity.ok(documentService.fetchDocument(request));
 	}
 
@@ -74,4 +76,9 @@ public class DocumentController {
 		return ResponseEntity.ok(documentService.fetchShareDocument(request));
 	}
 
+	@PostMapping("/collaborate")
+	public ResponseEntity<CollaborateDocumentResponse> collaborate(@RequestBody CollaborateDocumentRequest request) {
+		log.info("Collaborate document request received : {}", request);
+		return ResponseEntity.ok(documentService.collaborateDocument(request));
+	}
 }

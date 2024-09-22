@@ -1,7 +1,9 @@
 package com.dawson.document.services;
 
 import java.sql.Timestamp;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Optional;
 
 import org.apache.commons.lang3.RandomStringUtils;
@@ -11,6 +13,8 @@ import org.springframework.stereotype.Service;
 import com.dawson.document.entities.DocumentData;
 import com.dawson.document.entities.ShareDocumentData;
 import com.dawson.document.entities.User;
+import com.dawson.document.models.CollaborateDocumentRequest;
+import com.dawson.document.models.CollaborateDocumentResponse;
 import com.dawson.document.models.CreateDocumentRequest;
 import com.dawson.document.models.CreateDocumentResponse;
 import com.dawson.document.models.DeleteDocumentRequest;
@@ -45,13 +49,14 @@ public class DocumentService {
 			Optional<User> user = userRepository.findById(request.getOwnerId());
 			if (!user.isPresent()) {
 				log.info("User not found in database");
-				throw new RuntimeException();
+				throw new RuntimeException("User not found");
 			}
 			User userData = user.get();
 
 			DocumentData document = DocumentData.builder().id("DOC" + RandomStringUtils.randomAlphabetic(20))
 					.title(request.getTitle()).content("").ownerId(request.getOwnerId()).version("1")
-					.createdAt(new Timestamp(System.currentTimeMillis()).toString()).updatedAt(null).build();
+					.createdAt(new Timestamp(System.currentTimeMillis()).toString()).updatedAt(null).isCollaborate("N")
+					.build();
 
 			HashMap<String, String> documents = userData.getDocuments();
 			documents.put(document.getId(), document.getTitle());
@@ -60,10 +65,11 @@ public class DocumentService {
 			userRepository.save(userData);
 			repository.save(document);
 			log.info("Document created Successfully");
-			return CreateDocumentResponse.builder().documentId(document.getId()).version(document.getVersion()).build();
+			return CreateDocumentResponse.builder().documentId(document.getId()).version(document.getVersion())
+					.status("200").message("Document Created Successfully").build();
 		} catch (Exception e) {
-			log.info("Exception while creating document");
-			throw new RuntimeException();
+			log.error("Exception while creating document ", e);
+			throw new RuntimeException(e.getMessage());
 		}
 	}
 
@@ -73,7 +79,7 @@ public class DocumentService {
 
 			if (!documentData.isPresent()) {
 				log.info("Document not found in database");
-				throw new RuntimeException();
+				throw new RuntimeException("Document not found");
 			}
 
 			int version = Integer.parseInt(documentData.get().getVersion()) + 1;
@@ -84,10 +90,97 @@ public class DocumentService {
 
 			repository.save(document);
 			log.info("Document updated Successfully");
-			return UpdateDocumentResponse.builder().documentId(document.getId()).version(document.getVersion()).build();
+			return UpdateDocumentResponse.builder().documentId(document.getId()).version(document.getVersion())
+					.status("200").message("Document Updated Successfully").build();
 		} catch (Exception e) {
-			log.info("Exception while updating document");
-			throw new RuntimeException();
+			log.error("Exception while updating document ", e);
+			throw new RuntimeException(e.getMessage());
+		}
+	}
+
+	public CollaborateDocumentResponse collaborateDocument(CollaborateDocumentRequest request) {
+		try {
+			Optional<DocumentData> documentData = repository.findById(request.getDocumentId());
+
+			if (!documentData.isPresent()) {
+				log.info("Document not found in database");
+				throw new RuntimeException("Document not found");
+			}
+
+			DocumentData document = documentData.get();
+			List<String> users = request.getUsers();
+			if (users == null) {
+				users = new ArrayList<String>();
+			}
+
+			if (request.getIsCollaborate().equals("Y")) {
+				users.stream().forEach(user -> {
+					Optional<User> repoUser = userRepository.findById(user);
+					if (!repoUser.isPresent()) {
+						log.info("User with user ID : {} not found", user);
+						throw new RuntimeException("User Not Found");
+					}
+					User foundUser = repoUser.get();
+					if (foundUser.getCollaborateDocuments() == null
+							|| !foundUser.getCollaborateDocuments().containsKey(document.getId())) {
+						HashMap<String, String> collabs = foundUser.getCollaborateDocuments() == null
+								? new HashMap<String, String>()
+								: foundUser.getCollaborateDocuments();
+						collabs.put(document.getId(), document.getTitle());
+						foundUser.setCollaborateDocuments(collabs);
+						userRepository.save(foundUser);
+					}
+				});
+
+				if (document.getUsers() != null) {
+					for (String user : document.getUsers()) {
+						if (!users.contains(user)) {
+							Optional<User> repoUser = userRepository.findById(user);
+							if (!repoUser.isPresent()) {
+								log.info("User with user ID : {} not found", user);
+								throw new RuntimeException("User Not Found");
+							}
+							User foundUser = repoUser.get();
+							if (foundUser.getCollaborateDocuments() != null
+									&& foundUser.getCollaborateDocuments().containsKey(document.getId())) {
+								HashMap<String, String> collabs = foundUser.getCollaborateDocuments();
+								collabs.remove(document.getId());
+								foundUser.setCollaborateDocuments(collabs);
+								userRepository.save(foundUser);
+							}
+						}
+					}
+				}
+			} else {
+				document.getUsers().stream().forEach(user -> {
+					Optional<User> repoUser = userRepository.findById(user);
+					if (!repoUser.isPresent()) {
+						log.info("User with user ID : {} not found", user);
+						throw new RuntimeException("User Not Found");
+					}
+					User foundUser = repoUser.get();
+					if (foundUser.getCollaborateDocuments() != null
+							&& foundUser.getCollaborateDocuments().containsKey(document.getId())) {
+						HashMap<String, String> collabs = foundUser.getCollaborateDocuments();
+						collabs.remove(document.getId());
+						foundUser.setCollaborateDocuments(collabs);
+						userRepository.save(foundUser);
+					}
+				});
+				users = null;
+			}
+
+			document.setIsCollaborate(request.getIsCollaborate());
+			document.setUsers(users);
+
+			repository.save(document);
+			log.info("Document updated Successfully");
+			return CollaborateDocumentResponse.builder().documentId(document.getId())
+					.isCollaborate(document.getIsCollaborate()).collaborateUsers(document.getUsers()).status("200")
+					.message("Document Collaborated Successfully").build();
+		} catch (Exception e) {
+			log.error("Exception while collaborating document", e);
+			throw new RuntimeException(e.getMessage());
 		}
 	}
 
@@ -97,18 +190,25 @@ public class DocumentService {
 
 			if (!documentData.isPresent()) {
 				log.info("Document not found in database");
-				throw new RuntimeException();
+				throw new RuntimeException("Document not found");
 			}
 
 			DocumentData document = documentData.get();
 
+			if (!document.getOwnerId().equals(request.getOwnerId()) && (document.getUsers() == null
+					|| (document.getUsers() != null && !document.getUsers().contains(request.getOwnerId())))) {
+				log.info("User not Authorized to Access document");
+				throw new RuntimeException("User not Authorized to Access document");
+			}
 			return GetDocumentResponse.builder().content(document.getContent()).createdOn(document.getCreatedAt())
 					.documentId(document.getId()).ownerId(document.getOwnerId()).title(document.getTitle())
 					.updatedOn(document.getUpdatedAt()).version(document.getVersion()).isShare(document.getIsShare())
-					.shareId(document.getShareId()).build();
+					.shareId(document.getShareId()).users(document.getUsers())
+					.isCollaborate(document.getIsCollaborate()).status("200").message("Document Loaded")
+					.build();
 		} catch (Exception e) {
-			log.info("Exception while fetching document");
-			throw new RuntimeException();
+			log.error("Exception while fetching document ", e);
+			throw new RuntimeException(e.getMessage());
 		}
 	}
 
@@ -118,27 +218,49 @@ public class DocumentService {
 			Optional<DocumentData> documentData = repository.findById(request.getDocumentId());
 			if (!user.isPresent()) {
 				log.info("User not found in database");
-				throw new RuntimeException();
+				throw new RuntimeException("User not found");
 			}
 
 			if (!documentData.isPresent()) {
 				log.info("Document not found in database");
-				throw new RuntimeException();
+				throw new RuntimeException("Document not found");
 			}
 			User userData = user.get();
+			DocumentData doc = documentData.get();
 
 			HashMap<String, String> documents = userData.getDocuments();
 			documents.remove(request.getDocumentId());
 			userData.setDocuments(documents);
 
+			if(doc.getUsers() != null) {
+				for (String docUser : doc.getUsers()) {
+					Optional<User> repoUser = userRepository.findById(docUser);
+					if (!repoUser.isPresent()) {
+						log.info("User with user ID : {} not found", user);
+						throw new RuntimeException("User Not Found");
+					}
+					User foundUser = repoUser.get();
+					if (foundUser.getCollaborateDocuments() != null
+							&& foundUser.getCollaborateDocuments().containsKey(request.getDocumentId())) {
+						HashMap<String, String> collabs = foundUser.getCollaborateDocuments();
+						collabs.remove(request.getDocumentId());
+						foundUser.setCollaborateDocuments(collabs);
+						if (userData.getId().equals(foundUser.getId())) {
+							userData.setCollaborateDocuments(collabs);
+						}
+						userRepository.save(foundUser);
+					}
+				}
+			}
+
 			userRepository.save(userData);
 			repository.deleteById(request.getDocumentId());
 
 			return DeleteDocumentResponse.builder().documentId(request.getDocumentId()).ownerId(request.getOwnerId())
-					.status("SUCCESS").build();
+					.status("200").message("Document Deleted Successfully").build();
 		} catch (Exception e) {
-			log.info("Exception while fetching document");
-			throw new RuntimeException();
+			log.error("Exception while fetching document ", e);
+			throw new RuntimeException(e.getMessage());
 		}
 	}
 
@@ -148,33 +270,36 @@ public class DocumentService {
 
 			if (!user.isPresent()) {
 				log.info("User not found in database");
-				throw new RuntimeException();
+				throw new RuntimeException("User not found");
 			}
 
 			User userData = user.get();
 
-			return FetchDocumentResponse.builder().documents(userData.getDocuments()).build();
+			return FetchDocumentResponse.builder().documents(userData.getDocuments())
+					.collaborateDocuments(userData.getCollaborateDocuments()).status("200")
+					.message("Document Fetched Successfully").build();
 		} catch (Exception e) {
-			log.error(e);
-			log.info("Exception while fetching documents");
-			throw new RuntimeException();
+			log.error("Exception while fetching documents ", e);
+			throw new RuntimeException(e.getMessage());
 		}
 	}
 
 	public ShareDocumentResponse shareDocument(ShareDocumentRequest request) {
 		try {
-			Optional<User> user = userRepository.findById(request.getOwnerId());
+			Optional<User> userData = userRepository.findById(request.getOwnerId());
 			Optional<DocumentData> documentData = repository.findById(request.getDocumentId());
-			if (!user.isPresent()) {
+			if (!userData.isPresent()) {
 				log.info("User not found in database");
-				throw new RuntimeException();
+				throw new RuntimeException("User not found");
 			}
 
 			if (!documentData.isPresent()) {
 				log.info("Document not found in database");
-				throw new RuntimeException();
+				throw new RuntimeException("Document not found");
 			}
 			DocumentData document = documentData.get();
+			User user = userData.get();
+			HashMap<String, String> shareDs = user.getShareDocuments();
 
 			if (request.getIsShare().equals("Y")) {
 				ShareDocumentData shareDocumentData = ShareDocumentData.builder()
@@ -185,30 +310,39 @@ public class DocumentService {
 
 				document.setIsShare("Y");
 				document.setShareId(shareDocumentData.getId());
+				if (shareDs == null) {
+					shareDs = new HashMap<String, String>();
+				}
+				shareDs.put(shareDocumentData.getId(), shareDocumentData.getTitle());
+				user.setShareDocuments(shareDs);
+				userRepository.save(user);
 				shareRepository.save(shareDocumentData);
 				repository.save(document);
 
 				return ShareDocumentResponse.builder().documentId(document.getId()).ownerId(request.getOwnerId())
-						.shareId(shareDocumentData.getId()).isShare(request.getIsShare()).build();
+						.shareId(shareDocumentData.getId()).isShare(request.getIsShare()).status("200")
+						.message("Document Shared Successfully").build();
 			}
 
 			Optional<ShareDocumentData> shareData = shareRepository.findById(document.getShareId());
 			if (!shareData.isPresent()) {
 				log.info("Share Document not found in database");
-				throw new RuntimeException();
+				throw new RuntimeException("Share Document not found");
 			}
-
-			shareRepository.deleteById(document.getShareId());
+			shareDs.remove(document.getShareId());
+			user.setShareDocuments(shareDs);
 			document.setIsShare("N");
 			document.setShareId(null);
+			userRepository.save(user);
+			shareRepository.deleteById(shareData.get().getId());
 			repository.save(document);
 
 			return ShareDocumentResponse.builder().documentId(document.getId()).ownerId(request.getOwnerId())
-					.shareId(null).isShare(request.getIsShare()).build();
+					.shareId(null).isShare(request.getIsShare()).status("200")
+					.message("Share link Disabled Successfully").build();
 		} catch (Exception e) {
-			log.error("", e);
-			log.info("Exception while fetching documents");
-			throw new RuntimeException();
+			log.error("Exception while fetching documents ", e);
+			throw new RuntimeException(e.getMessage());
 		}
 	}
 
@@ -218,17 +352,16 @@ public class DocumentService {
 
 			if (!data.isPresent()) {
 				log.info("Shared Document not found in database");
-				throw new RuntimeException();
+				throw new RuntimeException("Shared Document not found");
 			}
 			ShareDocumentData document = data.get();
 
 			return GetDocumentResponse.builder().content(document.getContent()).createdOn(document.getCreatedAt())
 					.title(document.getTitle()).updatedOn(document.getUpdatedAt()).version(document.getVersion())
-					.build();
+					.status("200").message("Document Loaded").build();
 		} catch (Exception e) {
-			log.error(e);
-			log.info("Exception while fetching documents");
-			throw new RuntimeException();
+			log.error("Exception while fetching documents ", e);
+			throw new RuntimeException(e.getMessage());
 		}
 	}
 }

@@ -17,11 +17,13 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Document(collection = "User")
 public class User {
-    @Id
-    private String id;
-    private String username;
-    private String password;
-    private String email;
-    private ArrayList<String> roles;
-    private HashMap<String, String> documents;
+	@Id
+	private String id;
+	private String username;
+	private String password;
+	private String email;
+	private ArrayList<String> roles;
+	private HashMap<String, String> documents;
+	private HashMap<String, String> shareDocuments;
+	private HashMap<String, String> collaborateDocuments;
 }

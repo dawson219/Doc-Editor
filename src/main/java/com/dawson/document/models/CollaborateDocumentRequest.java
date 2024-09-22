@@ -1,5 +1,7 @@
 package com.dawson.document.models;
 
+import java.util.List;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import lombok.AllArgsConstructor;
@@ -11,13 +13,13 @@ import lombok.NoArgsConstructor;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class CreateDocumentResponse {
+public class CollaborateDocumentRequest {
 	@JsonProperty("document_id")
 	private String documentId;
-	@JsonProperty("version")
-	private String version;
-	@JsonProperty("message")
-	private String message;
-	@JsonProperty("status")
-	private String status;
+	@JsonProperty("owner_id")
+	private String ownerId;
+	@JsonProperty("is_collaborate")
+	private String isCollaborate;
+	@JsonProperty("users")
+	private List<String> users;
 }

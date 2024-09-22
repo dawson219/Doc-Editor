@@ -16,5 +16,11 @@ import lombok.NoArgsConstructor;
 public class FetchDocumentResponse {
 	@JsonProperty("documents")
 	private HashMap<String, String> documents;
+	@JsonProperty("collaborate_documents")
+	private HashMap<String, String> collaborateDocuments;
+	@JsonProperty("message")
+	private String message;
+	@JsonProperty("status")
+	private String status;
 
 }

@@ -20,4 +20,8 @@ public class ShareDocumentResponse {
 	private String shareId;
 	@JsonProperty("is_share")
 	private String isShare;
+	@JsonProperty("message")
+	private String message;
+	@JsonProperty("status")
+	private String status;
 }

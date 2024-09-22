@@ -16,6 +16,8 @@ public class DeleteDocumentResponse {
 	private String documentId;
 	@JsonProperty("owner_id")
 	private String ownerId;
+	@JsonProperty("message")
+	private String message;
 	@JsonProperty("status")
 	private String status;
 

@@ -20,5 +20,9 @@ public class UpdateDocumentResponse {
 	private String isShare;
 	@JsonProperty("share_id")
 	private String shareId;
+	@JsonProperty("message")
+	private String message;
+	@JsonProperty("status")
+	private String status;
 
 }
